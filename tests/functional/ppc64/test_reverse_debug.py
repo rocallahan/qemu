@@ -31,7 +31,7 @@ class ReverseDebuggingPpc64(ReverseDebugging):
     @skipFlakyTest("https://gitlab.com/qemu-project/qemu/-/issues/1992")
     def test_ppc64_powernv(self):
         self.set_machine('powernv')
-        self.reverse_debugging(gdb_arch='powerpc:common64')
+        self.reverse_debugging(gdb_arch='powerpc:common64', big_endian=True)
 
 
 if __name__ == '__main__':
