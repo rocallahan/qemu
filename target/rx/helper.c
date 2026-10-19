@@ -46,6 +46,8 @@ void rx_cpu_do_interrupt(CPUState *cs)
     CPURXState *env = cpu_env(cs);
     uint32_t save_psw;
     uint64_t last_pc = env->pc;
+    /* Exceptions take priority over any pending hardware interrupt */
+    bool is_exception = cs->exception_index >= 0;
 
     env->in_sleep = 0;
 
@@ -57,7 +59,7 @@ void rx_cpu_do_interrupt(CPUState *cs)
     save_psw = rx_cpu_pack_psw(env);
     env->psw_pm = env->psw_i = env->psw_u = 0;
 
-    if (cpu_test_interrupt(cs, CPU_INTERRUPT_FIR)) {
+    if (!is_exception && cpu_test_interrupt(cs, CPU_INTERRUPT_FIR)) {
         env->bpc = env->pc;
         env->bpsw = save_psw;
         env->pc = env->fintv;
@@ -66,7 +68,7 @@ void rx_cpu_do_interrupt(CPUState *cs)
         qemu_set_irq(env->ack, env->ack_irq);
         qemu_plugin_vcpu_interrupt_cb(cs, last_pc);
         qemu_log_mask(CPU_LOG_INT, "fast interrupt raised\n");
-    } else if (cpu_test_interrupt(cs, CPU_INTERRUPT_HARD)) {
+    } else if (!is_exception && cpu_test_interrupt(cs, CPU_INTERRUPT_HARD)) {
         env->isp -= 4;
         cpu_stl_le_data(env, env->isp, save_psw);
         env->isp -= 4;

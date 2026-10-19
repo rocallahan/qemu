@@ -72,7 +72,8 @@ REG8(SEMR, 7)
 static int can_receive(void *opaque)
 {
     RSCIState *sci = RSCI(opaque);
-    if (sci->rx_next > qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)) {
+    if (sci->rx_next > qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) ||
+        FIELD_EX8(sci->ssr, SSR, RDRF)) {
         return 0;
     } else {
         return FIELD_EX8(sci->scr, SCR, RE);
@@ -186,8 +187,10 @@ static void sci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
     case A_SSR:
         sci->ssr = FIELD_DP8(sci->ssr, SSR, MPBT,
                              FIELD_EX8(val, SSR, MPBT));
+        /* Error flags are cleared by writing 0; writing 1 has no effect */
         sci->ssr = FIELD_DP8(sci->ssr, SSR, ERR,
-                             FIELD_EX8(val, SSR, ERR) & 0x07);
+                             FIELD_EX8(val, SSR, ERR) &
+                             FIELD_EX8(sci->ssr, SSR, ERR));
         if (FIELD_EX8(sci->read_ssr, SSR, ERR) &&
             FIELD_EX8(sci->ssr, SSR, ERR) == 0) {
             qemu_set_irq(sci->irq[ERI], 0);
@@ -225,6 +228,7 @@ static uint64_t sci_read(void *opaque, hwaddr offset, unsigned size)
         return sci->ssr;
     case A_RDR:
         sci->ssr = FIELD_DP8(sci->ssr, SSR, RDRF, 0);
+        qemu_chr_fe_accept_input(&sci->chr);
         return sci->rdr;
     case A_SCMR:
         return sci->scmr;
