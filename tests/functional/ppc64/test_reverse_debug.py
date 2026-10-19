@@ -26,12 +26,12 @@ class ReverseDebuggingPpc64(ReverseDebugging):
         # SLOF branches back to its entry point, which causes this test
         # to take the 'hit a breakpoint again' path. That's not a problem,
         # just slightly different than the other machines.
-        self.reverse_debugging(gdb_arch='powerpc:common64')
+        self.reverse_debugging(gdb_arch='powerpc:common64', big_endian=True)
 
     @skipFlakyTest("https://gitlab.com/qemu-project/qemu/-/issues/1992")
     def test_ppc64_powernv(self):
         self.set_machine('powernv')
-        self.reverse_debugging(gdb_arch='powerpc:common64')
+        self.reverse_debugging(gdb_arch='powerpc:common64', big_endian=True)
 
 
 if __name__ == '__main__':

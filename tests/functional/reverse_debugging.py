@@ -37,7 +37,11 @@ class ReverseDebugging(LinuxKernelTest):
 
     def run_vm(self, record, shift, args, replay_path, image_path, port):
         vm = self.get_vm(name='record' if record else 'replay')
-        vm.set_console()
+        # Nothing reads the console, so discard it. In record/replay mode
+        # chardev writes block until they complete, so an undrained console
+        # socket eventually fills up and hangs QEMU, e.g. when the guest's
+        # output is re-emitted each time reverse-continue replays it.
+        vm.add_args('-serial', 'null')
         if record:
             self.log.info('recording the execution...')
             mode = 'record'
