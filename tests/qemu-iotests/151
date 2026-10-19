@@ -385,9 +385,20 @@ class TestLowThrottledWithNbdExport(TestThrottledWithNbdExportBase):
 
         # Note how much remains to be done now.  We expect this number to be
         # reduced thanks to those background requests.
-        job_status = self.vm.qmp('query-jobs')['return'][0]
-        end_remaining = job_status['total-progress'] - \
-            job_status['current-progress']
+        # Requests released by the throttle during the clock steps above
+        # still need real time to complete (the virtual clock only governs
+        # the throttling), so poll for a while without advancing the clock
+        # any further.  This way, no further requests are released, but
+        # those that were can settle before we look at the progress.
+        deadline = time.monotonic() + 10.0
+        while True:
+            job_status = self.vm.qmp('query-jobs')['return'][0]
+            end_remaining = job_status['total-progress'] - \
+                job_status['current-progress']
+            if start_remaining - end_remaining > 0 or \
+                    time.monotonic() > deadline:
+                break
+            time.sleep(0.01)
 
         # See that indeed progress was being made on the job, even while the
         # node was saturated with active requests
