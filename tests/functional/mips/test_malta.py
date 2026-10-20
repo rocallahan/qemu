@@ -56,6 +56,15 @@ def mips_check_wheezy(test, kernel_path, image_path, kernel_command_line, *,
     test.require_device(nic)
     test.set_machine('malta')
 
+    # The Debian Wheezy 3.2 kernels keep pending R_MIPS_HI16 relocations
+    # in a global list (mips_hi16_list) that is not protected against
+    # concurrent module loads, and the kmalloc() in the HI16 handler is a
+    # voluntary preemption point. When udev coldplugs devices it runs many
+    # modprobes in parallel, which can corrupt that list ("dangerous
+    # R_MIPS_LO16 REL relocation", then an Oops or soft lockup). Make udev
+    # handle events one at a time so module loads are serialized.
+    kernel_command_line += ' udev.children-max=1'
+
     port=8080
     test.vm.add_args('-kernel', kernel_path,
                      '-append', kernel_command_line,
