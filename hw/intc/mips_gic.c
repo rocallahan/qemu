@@ -200,14 +200,19 @@ static void gic_timer_expire_cb(void *opaque, uint32_t vp_index)
     }
 }
 
-static void gic_timer_store_vp_compare(MIPSGICState *gic, uint32_t vp_index,
-                                       uint64_t compare)
+static void gic_update_vp_compare_pin(MIPSGICState *gic, uint32_t vp_index)
 {
-    gic->vps[vp_index].pend &= ~(1 << GIC_LOCAL_INT_COMPARE);
     if (gic->vps[vp_index].compare_map & GIC_MAP_TO_PIN_MSK) {
         uint32_t pin = (gic->vps[vp_index].compare_map & GIC_MAP_MSK);
         mips_gic_set_vp_irq(gic, vp_index, pin);
     }
+}
+
+static void gic_timer_store_vp_compare(MIPSGICState *gic, uint32_t vp_index,
+                                       uint64_t compare)
+{
+    gic->vps[vp_index].pend &= ~(1 << GIC_LOCAL_INT_COMPARE);
+    gic_update_vp_compare_pin(gic, vp_index);
     mips_gictimer_store_vp_compare(gic->gic_timer, vp_index, compare);
 }
 
@@ -222,9 +227,12 @@ static void gic_write_vp(MIPSGICState *gic, uint32_t vp_index, hwaddr addr,
     case GIC_VP_RMASK_OFS:
         gic->vps[vp_index].mask &= ~(data & GIC_VP_SET_RESET_MSK) &
                                    GIC_VP_SET_RESET_MSK;
+        /* Masking or unmasking a pending interrupt changes the pin level */
+        gic_update_vp_compare_pin(gic, vp_index);
         break;
     case GIC_VP_SMASK_OFS:
         gic->vps[vp_index].mask |= data & GIC_VP_SET_RESET_MSK;
+        gic_update_vp_compare_pin(gic, vp_index);
         break;
     case GIC_VP_COMPARE_MAP_OFS:
         /* EIC isn't supported */
