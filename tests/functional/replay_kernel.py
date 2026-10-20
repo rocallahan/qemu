@@ -46,10 +46,17 @@ class ReplayKernelBase(LinuxKernelTest):
                     '-kernel', kernel_path,
                     '-append', kernel_command_line,
                     '-net', 'none',
-                    '-no-reboot')
+                    '-no-reboot',
+                    '-S')
         if args:
             vm.add_args(*args)
+        # Start the guest paused: in record/replay mode chardev writes
+        # block (holding the BQL and replay mutex) until the console
+        # socket is drained, which we only do after launch() completes
+        # the QMP handshake. If the guest filled the socket buffer
+        # before that, QEMU could never answer QMP and we'd deadlock.
         vm.launch()
+        vm.qmp('cont')
         self.wait_for_console_pattern(console_pattern, vm)
         if record:
             vm.shutdown()
