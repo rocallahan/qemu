@@ -95,9 +95,26 @@ uint32_t mips_gictimer_get_vp_compare(MIPSGICTimerState *gictimer,
 void mips_gictimer_store_vp_compare(MIPSGICTimerState *gictimer,
                                     uint32_t vp_index, uint64_t compare)
 {
+    uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    uint32_t old = gictimer->vptimers[vp_index].comparelo;
+    int32_t ahead;
+
     gictimer->vptimers[vp_index].comparelo = (uint32_t) compare;
-    gic_vptimer_update(gictimer, vp_index,
-                       qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+    gic_vptimer_update(gictimer, vp_index, now);
+
+    /*
+     * Guests program a deadline as counter + delta and assume the write
+     * lands before the counter gets there.  The counter follows host time,
+     * so a vCPU descheduled in between can write a deadline that has already
+     * passed, which would then not match until the counter wraps.  Treat a
+     * new deadline in the recent past as due now.  Rewriting the current
+     * value, as is done to acknowledge the interrupt, does not retrigger it.
+     */
+    ahead = (uint32_t)compare - gictimer->sh_counterlo -
+            (uint32_t)(now / TIMER_PERIOD);
+    if (!gictimer->countstop && ahead < 0 && (uint32_t)compare != old) {
+        gictimer->cb(gictimer->opaque, vp_index);
+    }
 }
 
 uint8_t mips_gictimer_get_countstop(MIPSGICTimerState *gictimer)
