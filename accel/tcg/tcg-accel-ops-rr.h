@@ -10,7 +10,13 @@
 #ifndef TCG_ACCEL_OPS_RR_H
 #define TCG_ACCEL_OPS_RR_H
 
-#define TCG_KICK_PERIOD (NANOSECONDS_PER_SECOND / 10)
+/*
+ * A vCPU spinning on a lock keeps running until it is kicked, so the
+ * period bounds how long a lock handoff to another vCPU can take. Keep
+ * it well below typical guest timer tick periods, otherwise SMP guests
+ * can livelock on contended spinlocks.
+ */
+#define TCG_KICK_PERIOD (NANOSECONDS_PER_SECOND / 100)
 
 /* Kick all RR vCPUs. */
 void rr_kick_vcpu_thread(CPUState *unused);
