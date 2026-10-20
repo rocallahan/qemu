@@ -16,7 +16,7 @@
  * it well below typical guest timer tick periods, otherwise SMP guests
  * can livelock on contended spinlocks.
  */
-#define TCG_KICK_PERIOD (NANOSECONDS_PER_SECOND / 100)
+#define TCG_KICK_PERIOD (NANOSECONDS_PER_SECOND / 1000)
 
 /* Kick all RR vCPUs. */
 void rr_kick_vcpu_thread(CPUState *unused);
