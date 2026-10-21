@@ -56,6 +56,16 @@ def mips_check_wheezy(test, kernel_path, image_path, kernel_command_line, *,
     test.require_device(nic)
     test.set_machine('malta')
 
+    # The Debian 3.2 guest kernel tracks pending R_MIPS_HI16 module
+    # relocations in a single global list (fixed upstream by Linux commit
+    # "MIPS: Fix race condition in module relocation code"). kmalloc()
+    # can reschedule while a module's list is half-built, so two modprobes
+    # run in parallel by udev can corrupt each other's relocations and the
+    # list itself, leading to "dangerous R_MIPS_LO16 REL relocation"
+    # errors, oopses or an endless loop in apply_r_mips_lo16_rel().
+    # Serialize udev's workers so modules are loaded one at a time.
+    kernel_command_line += ' udev.children-max=1'
+
     port=8080
     test.vm.add_args('-kernel', kernel_path,
                      '-append', kernel_command_line,
